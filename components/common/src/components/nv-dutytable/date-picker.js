@@ -12,7 +12,7 @@ function isDate(date) {
 export default {
     props: {
         defaultSelectedYear: {
-            type: Number, String,
+            type: [Number, String],
             required: false,
             default: CONSTANTS.currentYear
         },
@@ -22,17 +22,17 @@ export default {
             default: CONSTANTS.currentMonth + 1
         },
         defaultMaxDate: {
-            type: [Date, String],
+            type: [Date, String, Object],
             required: false,
             default: () => CONSTANTS.maxDate
         },
         defaultMinDate: {
-            type: [Date, String],
+            type: [Date, String, Object],
             required: false,
             default: () => CONSTANTS.minDate
         },
         defaultStartTime: {
-            type: [Date, String],
+            type: [Date, String, Object],
             required: false,
             default: () => CONSTANTS.today
         }
@@ -71,6 +71,24 @@ export default {
                     yearArr.push(i);
                 }
                 return yearArr.length ? yearArr : CONSTANTS.yearArr;
+            }
+        },
+        maxDate: {
+            get() {
+                return isDate(this.defaultMaxDate)
+                    ? this.defaultMaxDate
+                    : new Date(new Date(this.defaultMaxDate).getFullYear(),
+                        new Date(this.defaultMaxDate).getMonth(),
+                        new Date(this.defaultMaxDate).getDate());
+            }
+        },
+        minDate: {
+            get() {
+                return isDate(this.defaultMinDate)
+                    ? this.defaultMinDate
+                    : new Date(new Date(this.defaultMinDate).getFullYear(),
+                        new Date(this.defaultMinDate).getMonth(),
+                        new Date(this.defaultMinDate).getDate());
             }
         },
         maxYear: {

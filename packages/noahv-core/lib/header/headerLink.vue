@@ -4,7 +4,6 @@
             <router-link
                 :to="'/' + curItem.link"
                 :class="{active: curItem.selected}"
-                @click.native="headerClick(curItem, parent)"
             >
                 <i
                     :class="['noahv-icon', 'noahv-icon-' + curItem.type]"
@@ -123,9 +122,6 @@ export default {
                 this.isShow = false;
                 clearTimeout(timer);
             }, 350);
-        },
-        headerClick(item, parent) {
-            eventBus.$emit('header-item-event', item, parent);
         }
     }
 };

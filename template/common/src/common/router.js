@@ -1,12 +1,14 @@
 /**
  * @file router config
+ * @author darren(darrenywyu@gmail.com)
+ *         MrHKang(nimingdexiaohai@163.com)
  */
 export default [
     /* eslint-disable no-undef */
     // Keep this line if you want auto add router by noahv create
     {
         component: r => require.ensure([], () => r(require('src/demo/chart/trend')), 'demo/chart/trend'),
-        path: '/demo/chart/trend'
+        path: '/trendDemo'
     },
     {
         // file path，string or object
@@ -27,8 +29,8 @@ export default [
         path: '/chartDemo'
     },
     {
-        component: r => require.ensure([], () => r(require('src/demo/theme/button')), 'button'),
-        path: '/theme/button'
+        path: '/theme/button',
+        component: r => require.ensure([], () => r(require('src/demo/theme/button')), 'button')
     },
     {
         component: r => require.ensure([], () => r(require('src/demo/theme/table')), 'table'),
@@ -73,10 +75,6 @@ export default [
     {
         component: r => require.ensure([], () => r(require('src/demo/theme/switch')), 'switch'),
         path: '/theme/switch'
-    },
-    {
-        component: r => require.ensure([], () => r(require('src/demo/theme/find')), 'find'),
-        path: '/theme/find'
     },
     // please keep this object last one
     {

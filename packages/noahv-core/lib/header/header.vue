@@ -4,22 +4,32 @@
             <div class="noahv-layout-header-inner">
                 <div>
                     <Logo :logo="logo"></Logo>
-                    <Menu mode="horizontal" theme="dark" class="noahv-layout-nav" >
-                        <MenuItem :name="item.key ? item.key : '|'" :key="index" v-for="(item, index) in header">
-                            <headerLink :item="item" :parent="null"></headerLink>
-                        </MenuItem>
-                    </Menu>
-                    <Login :login="login"></Login>
+                    <div v-if="navsHide" class="noahv-layout-nav-wrapper">
+                        <ul class="noahv-layout-nav clearfixs">
+                            <li v-for="(item, key) in menu" :data-id="item.id">
+                                <headerLink :item="item"></headerLink>
+                            </li>
+                        </ul>
+                        <div class="noahv-layout-nav-more" v-show="moreMenu.length > 0">
+                            <div class="more-dot" title="更多">...</div>
+                            <ul class="more-list clearfixs">
+                                <li v-for="(item, key) in moreMenu">
+                                    <headerLink :moreMenu="true" :item="item"></headerLink>
+                                </li>
+                            </ul>
+                        </div>
+                        <Login :login="login"></Login>
+                    </div>
                 </div>
             </div>
         </div>
         <div class="noahv-layout-content">
-            <router-view name="sidebar" v-show="hasSidebar"></router-view>
-            <div class="noahv-layout-content-wrapper " :class="{'noahv-layout-content-wrapper-has-aside': hasSidebar}">
+            <router-view name="sidebar" v-show="hasSidebar" :routerConfig="routerConf" :sidebarConfig="sidebarConfig"></router-view>
+            <div class="noahv-layout-content-inner" :class="{'noahv-layout-content-inner-has-aside': hasSidebar}">
                 <div class="noahv-layout-breadcrumb" v-if="hasBread">
                     <Breadcrumb :separator="separatorString">
                         <template v-for="(item, index) in breadcrumb">
-                            <BreadcrumbItem>{{item.label}}</BreadcrumbItem>
+                            <BreadcrumbItem>{{item}}</BreadcrumbItem>
                         </template>
                     </Breadcrumb>
                 </div>
@@ -32,11 +42,13 @@
     </div>
 </template>
 <script>
-import headerLink from './headerLink';
-import Login from './login';
-import Logo from './logo';
-import {eventBus} from '../../util/eventBus';
+import $ from 'jquery';
 import _ from 'lodash';
+
+import Logo from './logo';
+import Login from './login';
+import headerLink from './headerLink';
+
 
 export default {
     name: 'sa-header',
@@ -49,7 +61,10 @@ export default {
         'hasBread',
         'logo',
         'routerConf',
-        'separator'
+        'separator',
+        'sidebarConfig',
+        'routerMap',
+        'getTargetInHeader'
     ],
     components: {
         headerLink,
@@ -59,121 +74,223 @@ export default {
 
     data() {
         return {
+            navsHide: true,
             breadcrumb: [],
             isShow: false,
             hasSidebar: false,
             separatorString: this.separator ? this.separator : '/',
-            header: this.headerConf ? this.headerConf : []
+            menu: this.headerConf ? this.headerConf : [],
+            moreMenu: []
         };
     },
     created() {
         this.routerChange();
-        this.getDefaultBreadcrumb();
-        this.unSelectedItem(this.header);
-        this.selectedItemHeaderClick();
-        this.selectItemByNotInHeader();
-        eventBus.$on('header-item-event', this.changeHeaderItem);
+    },
+    mounted() {
+        this.$nextTick(() => {
+            // 默认执行
+            this.caclNavWidth();
+            // resize window执行
+            window.addEventListener('resize', this.caclNavWidth, false);                     
+        });
+    },
+    destroyed() {
+        window.removeEventListener('resize', this.caclNavWidth, false);
     },
     watch: {
         '$route': 'routerChange'
     },
-    computed: {},
     methods: {
         routerChange() {
-            const path = this.$route.path.replace(/[\^/]/, '');
-            const flag = this.linkInHeader(path);
-            if (!flag) {
-                this.unSelectedItem(this.header);
-                this.selectItemByNotInHeader();
+            const path = this.$route.path;
+            // inHeader descript if not this path in header or sidebar
+            const inHeader = this.linkInHeader(path, this.routerConf);
+            if (!inHeader) {
+                this.updateByNotInHeader(path);
             }
             else {
-                const item = this.getCurrentItem('link', path);
-                this.changeHeaderItem(item);
+                this.updateByInHeader(path);
             }
             this.hasSidebarByRouter();
         },
+        /**
+         * 判断当前路由是否配置了侧导航
+         * 
+         */
         hasSidebarByRouter() {
-            const self = this;
-            const path = self.$route.path;
-            self.hasSidebar = false;
+            const path = this.$route.path;
+            this.hasSidebar = false;
             this.routerConf.forEach(item => {
                 if (item.components) {
                     if (item.path === path && item.components.sidebar) {
-                        self.hasSidebar = true;
+                        this.hasSidebar = true;
                     }
                 }
             });
         },
-        selectItemByNotInHeader() {
-            const self = this;
-            if (self.$route.meta.root) {
-                const root = self.$route.meta.root.replace(/[\^/]/, '');
-                const item = this.getCurrentItem('link', root);
-                this.changeHeaderItem(item);
-            }
-        },
-        changeBreadcrumb(item) {
-            const self = this;
-            const list = this.getCurrentItem('key', item);
-
-            if (Object.keys(list).length) {
-                self.breadcrumb.unshift(list);
-            }
-
-            if (list.parent && list.parent !== null) {
-                self.changeBreadcrumb(list.parent);
-            }
-        },
-        getDefaultBreadcrumb() {
-            const self = this;
-            const path = self.$route.path.replace(/[\^/]/, '');
-
-            if (path !== '') {
-                const item = this.getCurrentItem('link', path);
-
-                self.breadcrumb = [];
-                if (Object.keys(item).length) {
-                    self.breadcrumb.unshift(item);
-                }
-
-                if (item.parent && item.parent !== null) {
-                    self.changeBreadcrumb(item.parent);
-                }
-            }
-        },
-        selectedItem(list, breadArry) {
-            list.forEach(item => {
-                if (_.indexOf(breadArry, item.key) !== -1) {
-                    item.selected = true;
-                    if (item.children) {
-                        this.selectedItem(item.children, breadArry);
-                    }
-                }
-            });
-        },
-        selectedItemHeaderClick() {
-            this.unSelectedItem(this.header);
-
-            const breadcrumb = this.breadcrumb;
-            const breadArry = [];
-            breadcrumb.forEach(item => {
-                breadArry.push(item.key);
-            });
-
-            this.selectedItem(this.header, breadArry);
-        },
-        changeHeaderItem(item) {
-            this.unSelectedItem(this.header);
+        /**
+         * 当前路由不在导航中的情况下，根据mata配置更新导航状态及面包屑
+         * 
+         * @param {String} path 当前路由
+         */
+        updateByNotInHeader(path) {
             this.breadcrumb = [];
-            const list = this.getCurrentItem('key', item.key);
-            if (Object.keys(list).length) {
-                this.breadcrumb.unshift(list);
+            const meta = this.$route.meta || {};
+            
+            // 没有配置root或sidebarRoot时，匹配空串
+            // 可以短路面包屑添加头部和侧导航label的逻辑
+            this.setHeaderSelect(meta.root || '');
+            this.setSidebarSelect(path, meta.sidebarRoot || '');
+
+            for (let router of this.routerConf) {
+                if (router.path === path && router.meta && router.meta.breadcrumb) {
+                    this.breadcrumb.push(router.meta.breadcrumb);
+                    break;
+                }
+            }
+        },
+        /**
+         * 当前路由不在导航中的情况下，根据mata配置设置头部导航
+         * 
+         * @param {String} metaRoot 当前路由指向的头部导航link
+         */
+        setHeaderSelect(metaRoot) {
+            _.each(this.menu, item => {
+                this.$set(item, 'selected', metaRoot === item.key);
+                if (metaRoot === item.key) {
+                    this.breadcrumb.push(item.label);
+                }
+            });
+        },
+        /**
+         * 当前路由不在导航中的情况下，根据mata配置设置面包屑
+         * 导航状态的更新逻辑在sidebar中完成
+         * 
+         * @param {String} path 当前路由
+         * @param {String} metaSidebarRoot 当前路由指向的侧导航link
+         */
+        setSidebarSelect(path, metaSidebarRoot) {
+            if (this.sidebarConfig && metaSidebarRoot) {
+                const config = this.sidebarConfig[path];
+                if (config && config.menu) {
+                    _.each(config.menu, item => {
+                        if (item.type === 'item') {
+                            if (metaSidebarRoot === item.key) {
+                                this.breadcrumb.push(item.label);
+                            }
+                        }
+                        else if (item.type === 'subItem') {
+                            for (let subItem of item.children) {
+                                if (metaSidebarRoot === subItem.key) {
+                                    this.breadcrumb.push(item.label);
+                                    this.breadcrumb.push(subItem.label);
+                                }
+                            }
+                        }
+                    });
+                }
+            }            
+        },
+        /**
+         * 当前路由在导航中的情况下，更新导航状态及面包屑
+         * 
+         * @param {String} path 当前路由
+         */
+        updateByInHeader(path) {
+            this.breadcrumb = [];
+            this.updateHeaderSelect(path);
+            this.updateSidebarSelect(path);
+        },
+        /**
+         * 当前路由在导航中的情况下，更新头部导航状态
+         * 
+         * @param {String} path 当前路由
+         */
+        updateHeaderSelect(path) {
+            if (this.routerMap) {
+                const routerMap = this.routerMap[path] || {};
+                _.each(this.menu, item => {
+                    this.$set(item, 'selected', routerMap.headerRoot === item.key);
+                    if (routerMap.headerRoot === item.key) {
+                        this.breadcrumb.push(item.label);
+                    }
+                });
+            }
+            else {
+                _.each(this.menu, item => {
+                    this.$set(item, 'selected', path === item.link);
+                    if (path === item.link) {
+                        this.breadcrumb.push(item.label);
+                    }
+                });
+            }
+        },
+        /**
+         * 当前路由在导航中的情况下，更新面包屑
+         * 导航状态的更新逻辑在sidebar中完成
+         * 
+         * @param {String} path 当前路由
+         */
+        updateSidebarSelect(path) {
+            if (!this.sidebarConfig) {
+                return;
             }
 
-            if (item.parent && item.parent !== null) {
-                this.changeBreadcrumb(item.parent);
+            const config = this.sidebarConfig[path];
+
+            if (config && config.menu) {
+                _.each(config.menu, item => {
+                    if (item.type === 'item') {
+                        if (path === item.link) {
+                            this.breadcrumb.push(item.label);
+                        }
+                    }
+                    else if (item.type === 'subItem') {
+                        for (let subItem of item.children) {
+                            if (path === subItem.link) {
+                                this.breadcrumb.push(item.label);
+                                this.breadcrumb.push(subItem.label);
+                            }
+                        }
+                    }
+                });
             }
-            this.selectedItemHeaderClick();
+        },
+        /**
+         * 根据id查找当前的menu
+         * 
+         * @param {String} id 当前菜单的id
+         */
+        getMenuById(id) {
+            const hasFive = false;
+            this.menu.map((item, i) => {
+                if (id === item.id) {
+                    this.moreMenu.push(item);
+                }              
+            });
+        },
+        /**
+         * nav宽度重计算
+         */
+        caclNavWidth() {
+            const nav = $('.noahv-layout-nav');
+            const logo = $('.noahv-layout-logo').outerWidth();
+            const navLeft = parseInt(nav.css('marginLeft'), 10);
+            const navRight = parseInt(nav.css('marginRight'), 10);
+            const more = $('.noahv-layout-nav-more').width();
+
+            nav.width($(window).width() - logo - navLeft - navRight - more - 120);
+           
+            this.moreMenu = [];
+
+            [...$('.noahv-layout-nav li')].map((item, i) => {
+                const top = $(item).offset().top;
+                const id = $(item).attr('data-id');
+
+                if (top > 0) {
+                    this.getMenuById(id);
+                }
+            });
         }
     }
 };

@@ -1,19 +1,19 @@
 /**
- * NoahV Core
- * Copyright (c) 2019 Baidu, Inc. All Rights Reserved.
+ * NoahV
+ * Copyright (c) 2016 Baidu, Inc. All Rights Reserved.
  *
  * @file noahv core util
  * @author darren(darrenywyu@gmail.com)
+ *         MrHKang(nimingdexiaohai@163.com)
  */
 
 import Vue from 'vue';
 import VueRouter from 'vue-router';
 import invariant from 'invariant';
 import _ from 'lodash';
-import tongji from 'noahv-tongji';
+import tongji from '@baidu/noahv-tongji';
 
 import headerApp from './header/header';
-import headerSidebarApp from './header-sidebar/header-sidebar';
 import routerHandler from './router';
 import headerHandler from './header';
 
@@ -65,14 +65,15 @@ const start = (container, store) => {
 /**
  * create router for project
  *
- * @param  {Object} config router config for project
+ * @param {Object} routerConfig router config for project
+ * @param {Object} sidebarConfig sidebar config for project
  */
-const router = config => {
+const router = (routerConfig, sidebarConfig) => {
     invariant(
-        config instanceof Array,
+        routerConfig instanceof Array,
         `[noahv.router] router should be Array, but got ${typeof router}`
     );
-    let routerInstance = routerHandler(config);
+    let routerInstance = routerHandler(noahv, routerConfig, sidebarConfig);
     let routes = routerInstance;
 
     // 处理全局header
@@ -93,8 +94,9 @@ const router = config => {
             });
         }
         _.extend(noahv._headerConf, {
-            routerConf: config
+            routerConf: routerConfig
         });
+
         routes = [
             {
                 path: '/',
@@ -130,7 +132,7 @@ const layout = (config, footer) => {
         '[noahv.layout] layout must be registered before noahv.router()'
     );
     noahv._headerConf = headerHandler(config);
-    noahv._header = (noahv._headerConf.type === 'header') ? headerApp : headerSidebarApp;
+    noahv._header = headerApp;
     if (footer) {
         noahv._footer = footer;
     }

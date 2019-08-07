@@ -1,0 +1,171 @@
+@import '../header/variablesLayout.less';
+
+.@{prefixCls}-layout-aside {
+    padding-top: @sidebar-top-height;
+    width: @sidebar-width;
+    background: @sidebar-bg-color;
+    height: 100%;
+    top: 0;
+    position: fixed;
+    overflow: auto;
+    overflow-x: hidden;
+    z-index: 90;
+    .ivu-menu {
+        background: @sidebar-bg-color;
+        color: @sidebar-text-color;
+
+        border-right: 0 none;
+
+        &:hover {
+            border-right: 0 none;
+        }
+
+        .@{prefixCls}-icon {
+            margin-right: 0;
+            position: relative;
+            left: -25px;
+        }
+
+        &.ivu-menu-light {
+            &.ivu-menu-vertical  {
+                .ivu-menu-item {
+                    padding: 0;
+                    border-left: @sidebar-bg-color solid 3px;
+                    border-right: 0 none;
+    
+                    &:hover {
+                        background: @sidebar-bg-color-hover;
+                        color: @sidebar-text-color-hover;
+                    }
+    
+                    a {
+                        position: relative;
+                        padding: 14px 10px 14px 50px;
+                        display: block;
+                        font-size: 12px;
+                        color: @sidebar-text-color;
+                    }
+            
+                    &.ivu-menu-item-active {
+                        a {         
+                            color: @sidebar-text-current-color;
+                        }
+    
+                        &:hover {
+                            background: @sidebar-bg-current;
+                        }
+            
+                        .@{prefixCls}-layout-text {
+                            color: @sidebar-text-current-color;
+                        }
+                    }
+                }
+                        
+                .@{prefixCls}-layout-text {
+                    position: relative;
+                    left: -15px;
+                    color: @sidebar-text-color;
+                }
+                
+                .ivu-menu-submenu-title {
+                    background: @sidebar-bg-color-hover;
+                    color: @sidebar-text-color-hover;
+    
+                    .@{prefixCls}-icon {
+                        left: 0;
+                        margin-right: 10px;
+                    }
+                }
+        
+                .ivu-menu-submenu {
+                    .@{prefixCls}-layout-text {
+                        left: 0;
+                    }
+                }
+        
+                .ivu-menu-item-active {
+                    background: @sidebar-bg-current-submenu;
+    
+                    &:not(.ivu-menu-submenu) {
+                        background: @sidebar-bg-current;
+                        border-left: @sidebar-bg-current-border-left solid 3px; 
+                        border-right: 0 none;
+                    }
+        
+                    .ivu-menu {
+                        background: @sidebar-bg-current-submenu;
+                    }
+                }
+            }
+        }   
+        
+        &.ivu-menu-vertical {
+            &.ivu-menu-light {
+                &::after {
+                    background: 0 none;
+                }
+            }
+        }
+    }
+
+    .bottom-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: @sidebar-width;
+        height: 40px;
+        line-height: 40px;
+        text-align: center;
+        z-index: 99;
+        color: @sidebar-text-color;
+        cursor: pointer;
+        background:#e7e8ea;
+
+        .text {
+            position: absolute;
+            left: 0;
+            width: 130px;
+            // border-right: #fff solid 1px;
+            font-size: 14px;
+            line-height: 40px;
+        }
+
+        .icons {
+            position: absolute;
+            width: 50px;
+            left: 130px;
+            height: 40px;
+        }
+
+    }
+
+    &.@{prefixCls}-layout-aside-short {
+        width: @sidebar-hide-width;
+        .@{prefixCls}-layout-text {
+            display: none;
+        }
+        .bottom-nav {
+            width: @sidebar-hide-width;
+        }
+
+        .text {
+            display: none;
+        }
+
+        .icons {
+            left: 0;
+        }
+        .ivu-menu-submenu  .ivu-menu-item,
+        .ivu-menu-submenu-title-icon {
+            display: none;
+        }
+    }   
+}
+.@{prefixCls}-layout-aside:not(.@{prefixCls}-layout-aside-short) {
+    .ivu-menu.ivu-menu-light.ivu-menu-vertical .ivu-menu-item-active {
+        background: transparent;
+        .ivu-menu {
+            background: transparent;
+        }
+    }
+}

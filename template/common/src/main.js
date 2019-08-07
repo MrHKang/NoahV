@@ -16,6 +16,7 @@ import noahvComponent from 'noahv-component';
 import noahv from 'noahv-core';
 import routerConfig from './common/router';
 import headerConfig from './common/header';
+import sidebarConfig from './common/sidebar';
 import footerApp from './common/layout/footer';
 import store from './store/';
 import './common/hook/ajax';
@@ -43,7 +44,7 @@ noahv.layout(headerConfig, footerApp);
 // noahv.useLayout(layoutApp);
 
 // keep this
-noahv.router(routerConfig);
+noahv.router(routerConfig, sidebarConfig);
 
 // if you want use baidu tongji, add this line
 // for detail info, you can visit this page: http://tongji.baidu.com/web/help/article?id=174&type=0

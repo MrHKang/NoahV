@@ -1,17 +1,27 @@
 <template>
-    <div :class="getCls('trend')">
-        <h3>{{resTitle}}</h3>
-        <vue-echarts :options="curOptions" ref="chart"></vue-echarts>
+    <div :class="getCls('trend')" ref="trend">
+        <h3>
+            <span class="trend-title">{{resTitle}}</span>
+            <slot name="header-right"></slot>
+        </h3>
+        <!-- <vue-echarts :options="curOptions" ref="chart"></vue-echarts> -->
+        <div :class="getCls('chart')" ref="chart" v-if="!errTip"></div>
+        <div class="trend-error-holder" v-show="errTip">{{errTip}}</div>
+        <div class="show-loading" v-show="!isLoading && showLoading">
+            <div class="mask"></div>
+            <div class="content">{{showLoading}}</div>
+        </div>
     </div>
 </template>
 
 <script>
 import _ from 'lodash';
 import m from 'moment';
-import vueEcharts from './vueEcharts';
+import echarts from 'echarts';
 import getClassName from '../utils.js';
 import options from './options';
 import chartUtil from './chartUtil';
+import {eventBus} from '../eventBus';
 
 const DATE_FORMAT = 'YYYY-MM-DD HH:mm:ss';
 let xAxisFormat = 'YYYY-MM-DD HH:mm:ss';
@@ -130,27 +140,38 @@ export default {
     name: 'NvTrend',
     props: {
         title: String,
-        url: {
-            type: String,
-            required: true
-        },
+        url:  String,
         params: Object,
         options: Object,
         showLoading: String,
-        method: String
+        method: String,
+        dataFilter: Function,
+        requestConfig: Object
     },
 
-    components: {
-        vueEcharts
-    },
     data() {
         return {
             resTitle: this.title ? this.title : '',
-            curOptions: this.getInitOptions()
+            curOptions: this.getInitOptions(),
+            isLoading: false,
+            chart: null,
+            errTip: '',
         };
     },
+
     mounted() {
-        this.getData();
+        // 同步tooltip
+        eventBus.$on('syncTooltips', this.syncTooltips);
+
+        this.redraw = _.debounce(this.scrollTop, 100);
+        document.addEventListener('scroll', this.redraw, false);
+
+        this.resizeHandler = _.debounce(this.resizeChart, 200);
+        window.addEventListener('resize', this.resizeHandler);
+
+        this.$nextTick( () => {
+            this.scrollTop();
+        });
     },
     watch: {
         // params数据监听，变化的时候处理
@@ -174,18 +195,30 @@ export default {
         getInstance() {
             return this.$refs.chart.getChart();
         },
+        renderTrend() {
+            this.isLoading = true;
+            this.chart = echarts.init(this.$refs.chart);
+
+
+            // 处理xAxis重叠的问题
+            if (typeof this.chart.getWidth === 'function') {
+                let chartWidth = this.chart.getWidth();
+                this.curOptions.xAxis.splitNumber = parseInt(chartWidth / 100, 10)
+            }
+
+            this.chart.setOption(this.curOptions);
+
+            // 同步tooltip
+            this.chart.on('updateAxisPointer', function (params) {
+                eventBus.$emit('syncTooltips', params, this.chart);
+            });
+        },
         getData() {
             // const params = self.params;
             let config = {
-                url: this.url
+                url: this.url,
+                showLoading: false
             };
-
-            if (typeof this.showLoading !== 'undefined') {
-                this.$refs.chart.getChart().showLoading('default', {
-                    text: this.showLoading
-                });
-                config.showLoading = false;
-            }
 
             let method = 'post';
             if (this.method) {
@@ -200,11 +233,15 @@ export default {
                 config.data = this.params;
             }
 
-            this.$request(config).then(response => {
-                const data = response.data.data;
+            if (this.requestConfig) {
+                Object.assign(config, this.requestConfig);
+            }
 
-                if (typeof this.showLoading !== 'undefined') {
-                    this.$refs.chart.getChart().hideLoading();
+            this.$request(config).then(response => {
+                let data = response.data.data;
+
+                if (typeof this.dataFilter === 'function') {
+                    data = this.dataFilter(data);
                 }
 
                 // set the title
@@ -287,7 +324,7 @@ export default {
 
                 // 画阈值线
                 if (this.options.threshold) {
-                    curOptions.series.push({
+                    this.curOptions.series.push({
                         type: 'line',
                         markLine: {
                             silent: true,
@@ -311,7 +348,53 @@ export default {
                         }
                     });
                 }
+                this.renderTrend();
             });
+        },
+        /**
+         * caculate the sceen's position and judge whether to load
+         */
+        scrollTop() {
+            if (!this.isLoading
+                && this.isInScreen()) {
+                try {
+                    this.getData();
+                }
+                catch (e) {
+                    this.showError('获取数据失败');
+                }
+            }
+        },
+        showError(message) {
+            this.errTip = message;
+        },
+        isInScreen() {
+            const main = this.$refs.trend;
+            let top = chartUtil.getScrollTop();
+            let height = chartUtil.getViewHeight();
+            let offset = chartUtil.getOffset(main);
+            if (offset && offset.top < top + height && offset.bottom > top) {
+                return true;
+            }
+            return false
+        },
+         /**
+         * 同步tooltip
+         * @param  {Object} params   tooltip相关参数
+         * @param  {Object} sourceChart  echart实例
+         */
+        syncTooltips(params, sourceChart) {
+            if (this.chart
+                && sourceChart !== this.chart
+                && typeof this.chart.dispatchAction === 'function'
+                && typeof this.chart.makeActionFromEvent === 'function'
+                && this.isInScreen()
+                ) {
+                this.chart.dispatchAction(
+                    this.chart.makeActionFromEvent(params),
+                    true
+                );
+            }
         },
         getInitOptions() {
             return this.options
@@ -320,6 +403,11 @@ export default {
         },
         defaultOptions() {
             return options['lineChart'];
+        },
+        resizeChart() {
+            if (this.chart) {
+                this.chart.resize();
+            }
         }
     }
 };
